@@ -21,7 +21,7 @@ services:
     healthcheck:
       test: ["CMD", "peers"]
       interval: 1m
-      timeout: 1m
+      timeout: 30s
       start_period: 5m
       retries: 10
 
