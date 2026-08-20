@@ -29,7 +29,7 @@ The node is chatty at info level (~5 MB/hour); `docker-compose.yml` caps retenti
 5 × 20 MB. For the full peer table with addresses, `fdev query` is the underlying command:
 
 ```bash
-docker compose exec -T freenet /home/freenet/.local/bin/fdev query
+docker compose exec -T freenet fdev query
 ```
 
 ## Resetting
