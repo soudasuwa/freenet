@@ -7,30 +7,16 @@ services:
     # No ports published: with stock defaults the node picks a random UDP port on
     # first boot and reaches the network by hole-punching. See README.
 
-    # The node drains in-flight operations on SIGTERM and upstream documents
-    # stops that ran past 11s. Docker's 10s default would SIGKILL mid-drain,
-    # and entrypoint.sh would record that kill as a crash -- which now feeds
-    # the rollback counter, so a slow restart could trigger a spurious revert.
+    # The node drains in-flight work on SIGTERM; Docker's 10s default would
+    # kill it mid-drain, which entrypoint.sh would then record as a crash.
     stop_grace_period: 60s
 
-    # entrypoint.sh no longer execs the node (it has to outlive it to record
-    # the exit status), so PID 1 is a shell. This puts a real init behind it.
+    # entrypoint.sh does not exec the node, so PID 1 is a shell -- this puts a
+    # real init behind it.
     init: true
 
-    # `peers` counts TRANSPORT connections, not ring connections -- see the
-    # script. A node can hold transport connections with an empty ring, so this
-    # is a liveness check ("the node is talking to someone"), not proof that it
-    # is routing. RING_TRANSPORT_DESYNC in the logs is the signal for that.
-    #
-    # start_period is deliberately short. Docker stops counting failures inside
-    # it once a container has gone healthy, so a long grace buys silence during
-    # a real outage rather than tolerance for a slow start. 2m covers bootstrap;
-    # after that 5 consecutive failures (5 minutes) flip it unhealthy.
-    #
-    # Advisory only: Docker does not restart unhealthy containers by itself, and
-    # it should stay that way. Restart cycling is what caused the isolation this
-    # is designed to detect, so wiring unhealthy -> restart risks a feedback
-    # loop that digs the hole deeper.
+    # Unhealthy after 5 minutes with no connections. Advisory: Docker does not
+    # act on it, and restarting an isolated node tends to make it worse.
     healthcheck:
       test: ["CMD", "peers"]
       interval: 1m

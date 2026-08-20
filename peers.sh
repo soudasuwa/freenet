@@ -1,12 +1,8 @@
 #!/bin/sh
 # Print the node's connected peer count on stdout.
 #
-# This counts TRANSPORT connections -- what `fdev query` reports, which reads
-# the node's connection map, not its ring topology. The two normally agree, but
-# they diverge exactly when something is wrong: a node can hold transport
-# connections while its ring is empty, which it logs as RING_TRANSPORT_DESYNC,
-# and this script will cheerfully count those. Treat it as a liveness signal,
-# not as proof the node is routing anything.
+# Counts transport connections, as `fdev query` reports them. That is a
+# liveness signal rather than proof the node is routing; see the README.
 #
 # Exit status is the check itself, so this doubles as the container
 # healthcheck and as something you can read:
@@ -26,9 +22,8 @@ if ! out="$("$FDEV" query 2>/dev/null)"; then
 	exit 3
 fi
 
-# `fdev query` prints a table with one row per peer under an `Identifier`
-# header. Peer identifiers are 15+ alphanumerics; the header itself is not, so
-# this counts rows without counting the heading.
+# One table row per peer, under an `Identifier` header. Peer identifiers are
+# 15+ alphanumerics; the header is not, so this counts rows but not the heading.
 count="$(printf '%s\n' "$out" | grep -cE '^\| [A-Za-z0-9]{15,}')" || count=0
 
 echo "$count"
