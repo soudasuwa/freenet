@@ -15,15 +15,15 @@ services:
     # real init behind it.
     init: true
 
-    # Unhealthy after 5 minutes with no connections. Advisory only: Docker does
-    # not act on it, and an isolated node recovers on its own -- restarting just
-    # restarts the bootstrap clock.
+    # Unhealthy after 15 minutes with no connections. Advisory only: Docker
+    # does not act on it, and an isolated node recovers on its own -- observed
+    # self-heal is well under this, so a trip here means something real.
     healthcheck:
       test: ["CMD", "peers"]
       interval: 1m
-      timeout: 45s
-      start_period: 2m
-      retries: 5
+      timeout: 1m
+      start_period: 5m
+      retries: 10
 
     mem_limit: 2g
 
