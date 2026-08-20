@@ -15,8 +15,9 @@ services:
     # real init behind it.
     init: true
 
-    # Unhealthy after 5 minutes with no connections. Advisory: Docker does not
-    # act on it, and restarting an isolated node tends to make it worse.
+    # Unhealthy after 5 minutes with no connections. Advisory only: Docker does
+    # not act on it, and an isolated node recovers on its own -- restarting just
+    # restarts the bootstrap clock.
     healthcheck:
       test: ["CMD", "peers"]
       interval: 1m
