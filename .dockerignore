@@ -1,0 +1,5 @@
+# The upstream clone is reference material, not build input. Without this the
+# whole ~224MB of it is uploaded to the daemon on every build, to produce a
+# 13MB image whose only inputs are two shell scripts.
+.repos/
+.git/

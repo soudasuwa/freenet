@@ -1,0 +1,3 @@
+# Upstream source, cloned for reference. Not ours to track, and it carries its
+# own .git -- committing it would add a stray gitlink, not the files.
+.repos/
