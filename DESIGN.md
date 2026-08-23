@@ -4,108 +4,59 @@ Why this container is built the way it is. See the [README](README.md) to just r
 
 ## How it works
 
-Freenet keeps everything under `$HOME` — binaries in `~/.local/bin`, config in
-`~/.config/freenet`, data in `~/.local/share/freenet`, logs in `~/.local/state/freenet`
-(the same paths the [uninstall page](https://freenet.org/uninstall/) lists). So a single
-volume mounted at `/home/freenet` persists the entire installation.
-
-"Is this the first boot?" is answered by the only thing that matters: **is the binary
-there?** If `~/.local/bin/freenet` is missing, install it; otherwise skip. That makes the
-image versionless — it holds no Freenet release, just the ability to fetch one.
+Freenet keeps everything under `$HOME`: binaries, config, data, logs (same layout as the
+[uninstall page](https://freenet.org/uninstall/) lists), so one volume at `/home/freenet`
+persists the whole installation. First boot is detected by the only thing that matters: is
+`~/.local/bin/freenet` missing? The image itself is versionless, holding no Freenet release,
+just the ability to fetch one.
 
 ## Image
 
-Both compose files pull the prebuilt `soudasuwa/freenet:main` image, built by
-[the publish workflow](.github/workflows/publish.yml) on every push to `main`, rather than
-building locally — deploy platforms that build on every deploy from whatever compose file
-they're pointed at don't need to. To build from source instead, swap the `image:` line for
-`build: .`.
+`docker-compose.yml`/`docker-compose.public.yml` pull the prebuilt `soudasuwa/freenet` image
+([publish workflow](.github/workflows/publish.yml)) instead of building locally, so deploy
+platforms that rebuild on every deploy don't have to. Swap `image:` for `build: .` to build
+from source.
 
-## Updates
+## Updates and crash-loop rollback
 
-A node that spots a new release exits with code **42** to *request* an update — it never
-applies one itself. That is why `entrypoint.sh` runs `freenet update` before starting the
-node: the node exits 42, Docker's restart policy brings the container back, the update is
-applied, and the node starts on the new version. Docker is the supervisor, so no external
-tooling is needed. (`update` exits 2 when already current, which is not a failure.)
+A node that finds a new release exits **42** to request an update rather than applying one
+itself. `entrypoint.sh` runs `freenet update` before starting the node, so: exit 42 → Docker
+restarts the container → update applies → node starts on the new version. Docker is the whole
+supervisor.
 
-Verified end to end: a deliberately installed 0.2.126 was upgraded in place to 0.2.128.
+The same handoff carries crash-loop rollback: `freenet update` only reverts to the last
+known-good binary when told how the node stopped, via `FREENET_POST_STOP_EXIT_CODE`. So
+`entrypoint.sh` records the exit status and forwards it next boot. That's why it doesn't
+`exec` the node (it must outlive it to observe the exit) and why `init: true` is set (PID 1 is
+now a shell, not the node). `stop_grace_period: 60s` exists so a slow SIGTERM drain isn't
+mistaken for a crash and doesn't trigger a spurious rollback.
 
-The same handoff carries **crash-loop rollback**. `freenet update` only counts crashes and
-reverts to the last known-good binary when the supervisor tells it how the node stopped,
-via `FREENET_POST_STOP_EXIT_CODE` — upstream's systemd unit sets it from `ExecStopPost`. So
-`entrypoint.sh` records the node's exit status to `~/.local/state/freenet/.last-exit` and
-forwards it into the next boot's `update` call.
+## No published ports, by design (standard node)
 
-That is why the entrypoint does **not** `exec` the node: it has to outlive it to observe how
-it stopped. Restoring the `exec` would silently disable rollback and leave a bad release
-looping forever, since `restart: unless-stopped` brings the container back regardless. PID 1
-is a shell as a result, so `init: true` puts a real reaper behind it.
-
-Not every exit is a crash: 0, 2, 42, 43 and 44 are not, everything else — signal deaths
-included — is. Hence `stop_grace_period: 60s`. The node drains in-flight operations on
-SIGTERM, and a SIGKILL at Docker's 10s default would be recorded as a crash and could
-trigger a spurious rollback on a perfectly good version.
-
-## No published ports, by design
-
-With no `--network-port` the node picks a free UDP port on first boot and writes it to
-`~/.config/freenet/config.toml`, so it is fixed from then on but not knowable in advance.
-A hardcoded `ports:` mapping would therefore publish nothing, and none is set.
-
-This is not a workaround. The [whitepaper](https://github.com/freenet/paper-1) treats peers
-without a stable inbound address as the normal case:
-
-> Most peers operate behind consumer NAT and do not have a stable inbound address. The
-> transport supports hole-punching: when two peers want to connect and at least one is
-> behind a NAT, both peers send hello packets toward each other's observed external
-> addresses simultaneously. — §6.2, NAT Traversal and Bootstrap
-
-Gateways are the role that needs a stable address; a regular peer does not. Confirmed in
-practice — this node reached 17 ring connections with nothing published.
+The node picks a random UDP port on first boot and persists it: fixed, but not knowable in
+advance, so there's nothing to publish. This isn't a workaround: the
+[whitepaper](https://github.com/freenet/paper-1) treats NAT'd peers without a stable address as
+the normal case, reaching the network via hole-punching. Only gateways need a stable address.
 
 ## Logging
 
-The node writes rotating files to `~/.local/state/freenet/` and prints only `CRITICAL` to
-the console, which would leave `docker compose logs` empty. The image sets
-`FREENET_LOG_TO_STDERR=1` so it behaves like a normal container; the files are still written.
-
-```bash
-docker compose logs -f
-```
-
-It is chatty — roughly 150 events/min at steady state, ~5 MB/hour — so `docker-compose.yml`
-caps Docker's retention at 5 × 20 MB (about 18 hours). To make it quiet, set
-`LOG_LEVEL: warn` in the service `environment`; for compact one-line records instead of the
-default multi-line human-readable format, set `FREENET_LOG_FORMAT: json`.
+The node prints only `CRITICAL` to console (files still get everything); the image sets
+`FREENET_LOG_TO_STDERR=1` so `docker logs` isn't empty. It's chatty (~5 MB/hour), hence the
+Docker log retention cap. Quiet it with `LOG_LEVEL: warn`; compact JSON lines with
+`FREENET_LOG_FORMAT: json`.
 
 ## What `peers` actually counts
 
-`peers` reports **transport** connections, which is what `fdev query` returns — the node's
-connection map, not its ring topology. In normal operation the two agree, but they come
-apart precisely when something is wrong: a node can hold transport connections while its
-ring is empty, and `peers` will count them. The node logs that case as
-`RING_TRANSPORT_DESYNC`, and there is no non-HTML endpoint that reports ring state directly.
-
-So the healthcheck built on it is a liveness signal, not a guarantee the node is routing.
-Docker does not act on `unhealthy` by itself, and it should not be wired to: an isolated
-node recovers on its own, and restarting only restarts its bootstrap clock.
+Transport connections (same as `fdev query`), not ring topology. They usually match, but a
+node can hold transport connections with an empty ring (logged as `RING_TRANSPORT_DESYNC`).
+So the healthcheck is a liveness signal, not proof the node is routing. Don't wire
+`unhealthy` to a restart: an isolated node recovers on its own, and restarting just resets
+its bootstrap clock.
 
 ## The client API is not exposed
 
-Port 7509 is fully privileged — it can read and modify contract state, identities and keys —
-and binds loopback by default per
-[GHSA-824h-7x5x-wfmf](https://github.com/freenet/freenet-core/security/advisories/GHSA-824h-7x5x-wfmf).
-Publishing it as-is would not even work (it listens on the container's own loopback). Only
-widen it with `FREENET_WS_API_ADDRESS=::` behind an authenticating reverse proxy.
-
-The node also serves a status dashboard at `/` on that port, which `docker compose exec`
-reaches without publishing anything:
-
-```bash
-docker compose exec -T freenet curl -s http://127.0.0.1:7509/
-```
-
-Do not scrape its `<title>` for a connection count. The number only appears while
-connections are above zero; at zero the title is a warning glyph instead, so a title-based
-check goes silent in exactly the situation worth noticing. Use `peers`.
+Port 7509 is fully privileged (contract state, identities, keys) and binds loopback by default
+per [GHSA-824h-7x5x-wfmf](https://github.com/freenet/freenet-core/security/advisories/GHSA-824h-7x5x-wfmf).
+Widen it only with `FREENET_WS_API_ADDRESS=::` behind an authenticating reverse proxy. It also
+serves a status dashboard at `/`. Don't scrape its `<title>` for a peer count, since the
+number disappears at zero connections; use `peers` instead.
