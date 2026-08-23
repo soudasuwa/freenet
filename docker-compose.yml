@@ -1,6 +1,7 @@
 services:
   freenet:
-    build: .
+    image: soudasuwa/freenet:main
+    pull_policy: always
     restart: unless-stopped
     volumes:
       - freenet:/home/freenet

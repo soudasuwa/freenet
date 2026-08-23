@@ -11,6 +11,17 @@ docker compose up -d
 One volume at `/home/freenet` holds the whole installation, so the image carries no Freenet
 release — only the ability to fetch one. Updates apply themselves on restart.
 
+Both compose files pull a prebuilt image from Docker Hub (`soudasuwa/freenet:main`, built by
+[the publish workflow](.github/workflows/publish.yml) on every push to `main`) rather than
+building locally — deploy platforms that build on every deploy from whatever compose file
+they're pointed at don't need to. To build from source instead (e.g. testing a Dockerfile
+change before it's pushed), swap the `image:` line for `build: .`.
+
+The workflow needs two repo secrets before it can publish: `DOCKERHUB_USERNAME` and
+`DOCKERHUB_TOKEN` (an access token, not the account password — Docker Hub → Account Settings →
+Security → New Access Token). Without them the workflow fails at login and no image is ever
+pushed, so both compose files will fail to pull until this is set up.
+
 That runs a standard node: random UDP port, reaches the network by hole-punching, nothing
 published. To run a public node instead — a stable, published port other peers can dial into
 directly — run `docker-compose.public.yml` in its place. It's a standalone file (a single
