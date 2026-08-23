@@ -13,7 +13,7 @@
 # host, but keep the env var and the port mapping below in sync if you do.
 services:
   freenet:
-    image: soudasuwa/freenet:main
+    image: soudasuwa/freenet:latest
     pull_policy: always
     restart: unless-stopped
     volumes:

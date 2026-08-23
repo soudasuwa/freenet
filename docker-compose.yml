@@ -1,6 +1,6 @@
 services:
   freenet:
-    image: soudasuwa/freenet:main
+    image: soudasuwa/freenet:latest
     pull_policy: always
     restart: unless-stopped
     volumes:
