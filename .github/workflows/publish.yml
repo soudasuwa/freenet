@@ -1,13 +1,5 @@
 name: Publish image
 
-# Builds the Dockerfile and pushes it to Docker Hub so docker-compose.yml can
-# reference a prebuilt image instead of `build: .`. That matters on deploy
-# platforms (Coolify) that otherwise rebuild on every deploy from whatever
-# compose file they're pointed at.
-#
-# Requires two repo secrets: DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (a Docker
-# Hub access token, not the account password -- create one under Docker Hub
-# -> Account Settings -> Security -> New Access Token).
 on:
   push:
     branches: [main]
