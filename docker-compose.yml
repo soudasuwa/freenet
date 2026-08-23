@@ -7,7 +7,11 @@ services:
     # No ports published: with stock defaults the node picks a random UDP port on
     # first boot and reaches the network by hole-punching. See README. For a
     # stable published port instead, run docker-compose.public.yml in its
-    # place -- it includes this file, so it stands alone with a single -f.
+    # place. It's a standalone copy of this file, not an override -- an
+    # `include:` on this file broke on a deploy platform whose bundled
+    # Compose was too old to merge it (silently: no schema error, the
+    # included service's build/volumes/etc. just never arrived). Keep the
+    # two files in sync by hand.
 
     # The node drains in-flight work on SIGTERM; Docker's 10s default would
     # kill it mid-drain, which entrypoint.sh would then record as a crash.

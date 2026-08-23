@@ -13,8 +13,8 @@ release — only the ability to fetch one. Updates apply themselves on restart.
 
 That runs a standard node: random UDP port, reaches the network by hole-punching, nothing
 published. To run a public node instead — a stable, published port other peers can dial into
-directly — run `docker-compose.public.yml` in its place (it pulls in the base file itself, so
-one `-f` is enough — works the same if a deploy platform only lets you pick one compose file):
+directly — run `docker-compose.public.yml` in its place. It's a standalone file (a single
+`-f` is enough, including on deploy platforms that only accept one compose file):
 
 ```bash
 docker compose -f docker-compose.public.yml up -d

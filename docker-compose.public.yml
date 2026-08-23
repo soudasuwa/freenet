@@ -1,23 +1,53 @@
-# A public node: a stable, published port instead of the random one stock
-# defaults pick. Self-contained via `include:` (Compose Spec v2.20+/Docker
-# Engine 24+) so it works as a single file passed to `-f` or to a platform
-# that only accepts one compose file (e.g. Coolify) -- no `-f a -f b`
-# chaining needed:
+# A public node: same as docker-compose.yml, but with a stable, published
+# port instead of the random one stock defaults pick. Standalone on purpose
+# -- see the comment in docker-compose.yml for why this isn't an `include:`
+# override. Keep the two files in sync by hand.
 #
 #   docker compose -f docker-compose.public.yml up -d
 #
-# NETWORK_PORT is read on every boot (see freenet-core config.rs: an env value
-# always wins over what's persisted in config.toml), so this stays correct
-# even after a `down -v` wipe -- unlike hardcoding the port only in a CLI flag
-# passed once. 31337 is upstream's own default and what the public gateways
-# use; change it if it collides with something else on the host, but keep the
-# env var and the port mapping below in sync if you do.
-include:
-  - docker-compose.yml
-
+# NETWORK_PORT is read on every boot (see freenet-core config.rs: an env
+# value always wins over what's persisted in config.toml), so this stays
+# correct even after a `down -v` wipe -- unlike hardcoding the port only in
+# a CLI flag passed once. 31337 is upstream's own default and what the
+# public gateways use; change it if it collides with something else on the
+# host, but keep the env var and the port mapping below in sync if you do.
 services:
   freenet:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - freenet:/home/freenet
     environment:
       NETWORK_PORT: "31337"
     ports:
       - "31337:31337/udp"
+
+    # The node drains in-flight work on SIGTERM; Docker's 10s default would
+    # kill it mid-drain, which entrypoint.sh would then record as a crash.
+    stop_grace_period: 60s
+
+    # entrypoint.sh does not exec the node, so PID 1 is a shell -- this puts a
+    # real init behind it.
+    init: true
+
+    # Unhealthy after 15 minutes with no connections. Advisory only: Docker
+    # does not act on it, and an isolated node recovers on its own -- observed
+    # self-heal is well under this, so a trip here means something real.
+    healthcheck:
+      test: ["CMD", "peers"]
+      interval: 1m
+      timeout: 30s
+      start_period: 5m
+      retries: 10
+
+    mem_limit: 2g
+
+    # The node is chatty at info level, so cap what Docker keeps.
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+
+volumes:
+  freenet:
