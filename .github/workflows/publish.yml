@@ -36,4 +36,5 @@ jobs:
           push: true
           tags: |
             soudasuwa/freenet:main
+            soudasuwa/freenet:latest
             soudasuwa/freenet:${{ github.sha }}
