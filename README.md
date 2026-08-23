@@ -1,64 +1,22 @@
 # Freenet node in Docker
 
-A minimal Alpine container that runs the stock `freenet.org/install.sh` on first boot and
-then gets out of the way. No pinned version, no tuning flags, no environment overrides —
-the node runs on its own defaults.
+Minimal Alpine image running the stock `freenet.org/install.sh`. Design notes: [DESIGN.md](DESIGN.md).
 
 ```bash
-docker compose up -d
-```
-
-One volume at `/home/freenet` holds the whole installation, so the image carries no Freenet
-release — only the ability to fetch one. Updates apply themselves on restart.
-
-Both compose files pull a prebuilt image from Docker Hub (`soudasuwa/freenet:main`, built by
-[the publish workflow](.github/workflows/publish.yml) on every push to `main`) rather than
-building locally — deploy platforms that build on every deploy from whatever compose file
-they're pointed at don't need to. To build from source instead (e.g. testing a Dockerfile
-change before it's pushed), swap the `image:` line for `build: .`.
-
-The workflow needs two repo secrets before it can publish: `DOCKERHUB_USERNAME` and
-`DOCKERHUB_TOKEN` (an access token, not the account password — Docker Hub → Account Settings →
-Security → New Access Token). Without them the workflow fails at login and no image is ever
-pushed, so both compose files will fail to pull until this is set up.
-
-That runs a standard node: random UDP port, reaches the network by hole-punching, nothing
-published. To run a public node instead — a stable, published port other peers can dial into
-directly — run `docker-compose.public.yml` in its place. It's a standalone file (a single
-`-f` is enough, including on deploy platforms that only accept one compose file):
-
-```bash
-docker compose -f docker-compose.public.yml up -d
+docker compose up -d                                # standard node: random port, hole-punching
+docker compose -f docker-compose.public.yml up -d   # public node: stable, published port
 ```
 
 ## Checking on it
 
 ```bash
-docker compose exec -T freenet peers
-```
-
-Prints the number of connected peers. Its exit status doubles as the container healthcheck:
-0 with at least one connection, 1 when the node answers but is isolated, 3 when it could not
-be queried at all.
-
-```bash
+docker compose exec -T freenet peers        # connected peer count
+docker compose exec -T freenet fdev query   # full peer table
 docker compose logs -f
-```
-
-The node is chatty at info level (~5 MB/hour); `docker-compose.yml` caps retention at
-5 × 20 MB. For the full peer table with addresses, `fdev query` is the underlying command:
-
-```bash
-docker compose exec -T freenet fdev query
 ```
 
 ## Resetting
 
-`docker compose down -v` removes the volume, which is the container equivalent of
-`freenet uninstall --purge`: binaries, config, data and node identity all go with it.
-
-## Notes
-
-Port 7509 is a fully privileged control API and stays on loopback — see
-[DESIGN.md](DESIGN.md), which also covers the update and rollback handling, why no ports are
-published, and what the healthcheck does and does not tell you.
+```bash
+docker compose down -v   # wipes binary, config, data, node identity
+```

@@ -13,6 +13,14 @@ volume mounted at `/home/freenet` persists the entire installation.
 there?** If `~/.local/bin/freenet` is missing, install it; otherwise skip. That makes the
 image versionless — it holds no Freenet release, just the ability to fetch one.
 
+## Image
+
+Both compose files pull the prebuilt `soudasuwa/freenet:main` image, built by
+[the publish workflow](.github/workflows/publish.yml) on every push to `main`, rather than
+building locally — deploy platforms that build on every deploy from whatever compose file
+they're pointed at don't need to. To build from source instead, swap the `image:` line for
+`build: .`.
+
 ## Updates
 
 A node that spots a new release exits with code **42** to *request* an update — it never
