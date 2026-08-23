@@ -1,7 +1,10 @@
-# Override for running a public node: a stable, published port instead of the
-# random one stock defaults pick. Layer it on top of the base file:
+# A public node: a stable, published port instead of the random one stock
+# defaults pick. Self-contained via `include:` (Compose Spec v2.20+/Docker
+# Engine 24+) so it works as a single file passed to `-f` or to a platform
+# that only accepts one compose file (e.g. Coolify) -- no `-f a -f b`
+# chaining needed:
 #
-#   docker compose -f docker-compose.yml -f docker-compose.public.yml up -d
+#   docker compose -f docker-compose.public.yml up -d
 #
 # NETWORK_PORT is read on every boot (see freenet-core config.rs: an env value
 # always wins over what's persisted in config.toml), so this stays correct
@@ -9,6 +12,9 @@
 # passed once. 31337 is upstream's own default and what the public gateways
 # use; change it if it collides with something else on the host, but keep the
 # env var and the port mapping below in sync if you do.
+include:
+  - docker-compose.yml
+
 services:
   freenet:
     environment:
