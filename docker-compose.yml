@@ -5,7 +5,8 @@ services:
     volumes:
       - freenet:/home/freenet
     # No ports published: with stock defaults the node picks a random UDP port on
-    # first boot and reaches the network by hole-punching. See README.
+    # first boot and reaches the network by hole-punching. See README. For a
+    # stable published port instead, layer docker-compose.public.yml on top.
 
     # The node drains in-flight work on SIGTERM; Docker's 10s default would
     # kill it mid-drain, which entrypoint.sh would then record as a crash.

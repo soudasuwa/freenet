@@ -11,6 +11,14 @@ docker compose up -d
 One volume at `/home/freenet` holds the whole installation, so the image carries no Freenet
 release — only the ability to fetch one. Updates apply themselves on restart.
 
+That runs a standard node: random UDP port, reaches the network by hole-punching, nothing
+published. To run a public node instead — a stable, published port other peers can dial into
+directly — layer the public override on top:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.public.yml up -d
+```
+
 ## Checking on it
 
 ```bash

@@ -1,0 +1,17 @@
+# Override for running a public node: a stable, published port instead of the
+# random one stock defaults pick. Layer it on top of the base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.public.yml up -d
+#
+# NETWORK_PORT is read on every boot (see freenet-core config.rs: an env value
+# always wins over what's persisted in config.toml), so this stays correct
+# even after a `down -v` wipe -- unlike hardcoding the port only in a CLI flag
+# passed once. 31337 is upstream's own default and what the public gateways
+# use; change it if it collides with something else on the host, but keep the
+# env var and the port mapping below in sync if you do.
+services:
+  freenet:
+    environment:
+      NETWORK_PORT: "31337"
+    ports:
+      - "31337:31337/udp"
