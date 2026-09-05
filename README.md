@@ -1,3 +1,8 @@
+## Depreciated!  
+Official guide:  
+https://freenet.org/quickstart/docker/
+
+
 # Freenet node in Docker
 
 A minimal Docker image for running a [Freenet](https://freenet.org) node, a peer-to-peer
